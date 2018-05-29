@@ -1,0 +1,51 @@
+= ContainerRecord: Two-tier ActiveRecord functionality
+
+Rails' ActiveRecord ("AR") is implemented on the level of tables, such that
+each AR model corresponds to a table.
+
+ContainerRecord ("CR") however implements an additional tier on top of AR,
+that implements AR-styled functionality on the database level.
+
+[source,ruby]
+----
+class Container < ContainerRecord
+  belongs_to :user
+  has_many :files
+  database_name [ :main_db, :name, :id ]
+end
+
+class User < ActiveRecord
+  has_many :containers
+  has_many :files
+end
+
+class File < ActiveRecord
+  container_record Container
+  belongs_to :container
+  belongs_to :user
+end
+----
+
+What this means:
+
+* Each `Container` is to have its own Database, with a table called `[container].files`.
+
+* You can add and remove `Container` entries and the backend will crete/delete the database
+of the `Container`.
+
+* There will be a `[main_db].containers` table that keeps track of all containers and their databases.
+
+* Adding a `File` will create a record in the `[container].files` table.
+
+* Adding a `User` will create a record in the `[main_db].users` table.
+
+* The naming of `[container]` can depend on the setting, such as `[main-db]-[container-name]-[container-id]` (suppose `container-id` is a UUID).
+
+Benefits:
+
+* Each `Container` can be completely segregated from each other (esp. backup, restore)
+* Each `Container` is self sustained
+
+Drawbacks:
+
+* Unable to perform cross-`Container` joins
