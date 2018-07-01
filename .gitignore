@@ -1,0 +1,15 @@
+/.bundle/
+/.yardoc
+/.vagrant
+/Gemfile.lock
+/Vagrantfile
+/_yardoc/
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/tmp/
+
+.DS_Store
+.ruby-version
+.ruby-gemset
