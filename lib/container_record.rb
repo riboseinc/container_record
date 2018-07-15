@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'pry'
+
 require 'container_record/config'
 require 'container_record/railtie'
 require 'container_record/container'
