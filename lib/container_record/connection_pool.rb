@@ -18,6 +18,10 @@ module ContainerRecord
         @connections ||= {}
       end
 
+      def main_db_configuration
+        ActiveRecord::Base.configurations[Rails.env].symbolize_keys
+      end
+
       private
 
       def new_connection(container)
@@ -30,10 +34,6 @@ module ContainerRecord
         Object.const_set(connection_class_name, connection_class)
         connection_class.establish_connection(params)
         connection_class.connection
-      end
-
-      def main_db_configuration
-        ActiveRecord::Base.configurations[Rails.env].symbolize_keys
       end
 
       def connection_class_name
