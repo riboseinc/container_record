@@ -31,31 +31,25 @@ module ContainerRecord
         external_relation_klass = add_external_has_many_relation!(relation_name)
 
         define_method(relation_name) do
-          if strored_in == self
-            self.class.with_connection(container, external_relation_klass) do
-              external_relation_klass.all
-            end
+          if strored_in == self.class
+            self.class.execute_query(self, external_relation_klass)
           else
             containers_relation_method = strored_in.to_s.underscore.pluralize
             # TODO: Return Proxy object to be able to filter files by some criteria
             self.public_send(containers_relation_method).map do |container|
-              self.class.with_connection(container, external_relation_klass) do
-                external_relation_klass.all
-              end
-            end
+              self.class.execute_query(container, external_relation_klass)
+            end.flatten
           end
         end
       end
 
-      def with_connection(container, external_relation_klass)
-        prev_config = self.configurations[Rails.env].symbolize_keys
-        config = ContainerRecord::ConnectionPool.main_db_configuration
-        config.merge!(database: container.name)
-        external_relation_klass.table_name = make_table_name(external_relation_klass)
-        external_relation_klass.establish_connection(config)
-        yield
-      ensure
-        self.establish_connection(prev_config)
+      def execute_query(container, external_relation_klass)
+        connection = ConnectionPool.connection_for(container)
+        table_name = make_table_name(external_relation_klass)
+        query = "select * from #{table_name}"
+        connection.execute(query).map do |tuple|
+          external_relation_klass.new(tuple)
+        end
       end
 
       def container_record(container_class)

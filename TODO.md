@@ -5,6 +5,7 @@
 What is now working:
 
 - [x] Creating new ActiveRecord connections to the databases defined in a `containers` table
+- [x] Querying all objects from external databases (`select * from table`)
 
 To do:
 
