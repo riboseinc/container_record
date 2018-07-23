@@ -14,6 +14,10 @@ module ContainerRecord
           raise("Connection for #{container} not found, try restarting server")
       end
 
+      def config_for(container)
+        connection_for(container).instance_variable_get(:@config)
+      end
+
       def connections
         @connections ||= {}
       end
@@ -26,7 +30,7 @@ module ContainerRecord
 
       def new_connection(container)
         # TODO: replace `container.name` with dynamic name generation
-        params = main_db_configuration.merge(database: container.name)
+        params = main_db_configuration.merge(database: container.database)
         connection_class = Class.new(ActiveRecord::Base)
         # De-anonymize service class,
         # otherwise ActiveRecord denies to establish connection

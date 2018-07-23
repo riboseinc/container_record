@@ -4,7 +4,7 @@ module ContainerRecord
   class Config
     class << self
       def configure
-        
+        # TODO: Something
       end
     end
   end
