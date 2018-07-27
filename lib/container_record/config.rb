@@ -2,10 +2,11 @@
 
 module ContainerRecord
   class Config
-    class << self
-      def configure
-        # TODO: Something
-      end
+
+    attr_writer :external_database_classes
+
+    def initialize()
+      # TODO
     end
   end
 end

@@ -16,8 +16,6 @@ module ContainerRecord
         end
       end
 
-      # protected
-
       def containered_class_for(external_model_class, container)
         @containered_classes ||= {}
         @containered_classes[container] ||= {}
@@ -27,24 +25,45 @@ module ContainerRecord
 
       private
 
-      def containered_class_name(external_model_class, container)
-        [external_model_class, self, container.id].join('_')
+      def containered_class_name(container)
+        [self, container.id].join
       end
 
       def define_class_for_container(external_model_class, container)
         containered_class = Class.new(external_model_class)
-        containered_class_name =
-          containered_class_name(external_model_class, container)
-        Object.const_set(containered_class_name, containered_class)
+        class_name = containered_class_name(container)
+        external_model_class.const_set(class_name, containered_class)
+        containered_class.establish_connection(connection_params(container))
 
-        containered_class.establish_connection(ConnectionPool.config_for(container))
-        # containered_class.establish_connection(connection_params(container))
+        redefine_associations!(containered_class, class_name)
 
         containered_class
       end
 
       def class_by_relation_name(relation_name)
-        relation_name.to_s.capitalize.singularize.constantize
+        relation_name.to_s.capitalize.singularize.camelize.constantize
+      end
+
+      def redefine_associations!(containered_class, class_name)
+        reflections = containered_class.reflect_on_all_associations
+        reflections.each do |reflection|
+          options = reflection_options_copy(reflection)
+          containered_class.instance_eval do
+            send(
+              reflection.macro,
+              reflection.name,
+              options.merge(
+                class_name: [reflection.klass, class_name].join('::')
+              )
+            )
+          end
+        end
+      end
+
+      def reflection_options_copy(reflection)
+        %i[foreign_key].each_with_object({}) do |key, copy|
+          copy[key] = reflection.public_send(key)
+        end
       end
     end
   end

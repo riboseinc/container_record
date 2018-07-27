@@ -8,6 +8,7 @@
 /doc/
 /pkg/
 /spec/reports/
+/spec/db/
 /tmp/
 
 .DS_Store
