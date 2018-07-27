@@ -5,6 +5,8 @@ module ContainerRecord
     module DynamicClasses
       include Connection
 
+      RAILS_ASSOCIATION_PARAMS = %i[foreign_key]
+
       def has_external(relation_name)
         external_model_class = class_by_relation_name(relation_name)
 
@@ -61,9 +63,9 @@ module ContainerRecord
       end
 
       def reflection_options_copy(reflection)
-        %i[foreign_key].each_with_object({}) do |key, copy|
+        RAILS_ASSOCIATION_PARAMS.each_with_object({}) do |key, copy|
           copy[key] = reflection.public_send(key)
-        end
+        end.merge(reflection.options)
       end
     end
   end
