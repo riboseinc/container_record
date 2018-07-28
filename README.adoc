@@ -50,7 +50,7 @@ class ExternalDatabase < ContainerRecord::ExternalDatabase
   has_external :attachments
   has_external :owners
 
-  # By default database_name equals `database` fields
+  # By default database_name equals `database` field
   database_name ->(db) { "database_for_user_#{db.user.id}" }
 end
 
@@ -60,6 +60,12 @@ end
 
 class Attachment < ContainerRecord::DynamicDatabase
   belongs_to :owner
+end
+
+# config/initializers/container_record.rb
+
+ContainerRecord.configure do |config|
+  config.external_database_classes = [ExternalDatabase]
 end
 
 ----
