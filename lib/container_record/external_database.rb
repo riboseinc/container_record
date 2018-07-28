@@ -17,15 +17,13 @@ module ContainerRecord
       self.class.containered_class_for(model_class, self).create(params)
     end
 
-    def create_external_record!(model_object)
+    def create_external_record!(model_class, params = nil)
       self.class.containered_class_for(model_class, self).create!(params)
     end
 
     class << self
       def options
-        {
-          database_name: @database_name
-        }
+        { database_name: @database_name }
       end
 
       private

@@ -5,18 +5,22 @@ module ContainerRecord
     module DynamicClasses
       include Connection
 
-      RAILS_ASSOCIATION_PARAMS = %i[foreign_key]
+      RAILS_ASSOCIATION_PARAMS = %i[foreign_key].freeze
 
+      # rubocop:disable Naming/PredicateName
       def has_external(relation_name)
         external_model_class = class_by_relation_name(relation_name)
 
         # Here we dynamically define classes for every container in the System
         # So every class has its own connection and is able to use ActiveRecord
         # syntax for querying
+        define_dynamic_classes!(external_model_class)
+
         define_method(relation_name) do
           self.class.containered_class_for(external_model_class, self).where({})
         end
       end
+      # rubocop:enable Naming/PredicateName
 
       def containered_class_for(external_model_class, container)
         @containered_classes ||= {}
@@ -27,13 +31,20 @@ module ContainerRecord
 
       private
 
+      def define_dynamic_classes!(external_model_class)
+        find_each do |external_database_record|
+          containered_class_for(external_model_class, external_database_record)
+        end
+      end
+
       def containered_class_name(container)
         [self, container.id].join
       end
 
       def define_class_for_container(external_model_class, container)
         containered_class = Class.new(external_model_class)
-        class_name = containered_class_name(container)
+        class_name        = containered_class_name(container)
+
         external_model_class.const_set(class_name, containered_class)
         containered_class.establish_connection(connection_params(container))
 

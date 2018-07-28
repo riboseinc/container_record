@@ -2,16 +2,18 @@
 
 module ContainerRecord
   module Configuration
-    class << self
-      def configure
-        yield config
-      end
+    def configure
+      yield config
+    end
 
-      private
+    private
 
-      def config
-        @config ||= OpenStruct.new
-      end
+    def config
+      @config ||= OpenStruct.new(defaults)
+    end
+
+    def defaults
+      { external_database_classes: [] }
     end
   end
 end

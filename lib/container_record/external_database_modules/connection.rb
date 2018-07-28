@@ -3,17 +3,15 @@
 module ContainerRecord
   module ExternalDatabaseModules
     module Connection
-
       # MySQL set of options for database.yml (TODO: add PG)
       CONFIG_OPTIONS = %w[
         username password database adapter encoding pool host port socket
         reconnect strict variables
         sslca sslkey sslcert sslcapath sslcipher
-      ]
+      ].freeze
 
       private
 
-      # TODO: Add support for custom database name (lambda?)
       def connection_params(container)
         config = container_connection_config(container).symbolize_keys
         config.reject! { |_, value| value.nil? }
