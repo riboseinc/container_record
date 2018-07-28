@@ -6,46 +6,93 @@ each AR model corresponds to a table.
 ContainerRecord ("CR") however implements an additional tier on top of AR,
 that implements AR-styled functionality on the database level.
 
+= Usage example
+
+To start using `ContainerRecord` you need to create an `external_databases`
+table in your main database.
+The name is fully optional, as well as the structure.
+
+The idea is that you store a database connection settings there,
+like if you would store them in your standard Rails `config/database.yml`.
+
+Column names should match the keys available in `config/database.yml`.
+
+For example:
+
+.external_databases
+|===
+|id |database |host
+
+|1
+|database_for_john_the_client
+|8.8.8.8
+
+|2
+|database_for_mary_the_client
+|1.1.1.1
+|===
+
+You can omit settings you don't use (for example - `adapter` or `port`),
+or leave some columns nil. In that case missing settings
+will be taken from `config/database.yml` aka
+from the main ActiveRecord::Base connection configuration.
+
 [source,ruby]
 ----
-class Container < ContainerRecord
-  belongs_to :user
-  has_many :files
-  database_name [ :main_db, :name, :id ]
+
+class User < ApplicationRecord
+  has_many :external_databases
 end
 
-class User < ActiveRecord
-  has_many :containers
-  has_many :files
+class ExternalDatabase < ContainerRecord::ExternalDatabase
+  belongs_to :user
+
+  has_external :attachments
+  has_external :owners
+
+  # By default database_name equals `database` fields
+  database_name ->(db) { "database_for_user_#{db.user.id}" }
 end
 
-class File < ActiveRecord
-  container_record Container
-  belongs_to :container
-  belongs_to :user
+class Owner < ContainerRecord::DynamicDatabase
+  has_many :attachments
 end
+
+class Attachment < ContainerRecord::DynamicDatabase
+  belongs_to :owner
+end
+
 ----
 
-What this means:
+The example above implements the following structure:
 
-* Each `Container` is to have its own Database, with a table called `[container].files`.
+You have `User` in you main Rails database.
+You also have `ExternalDatabase` in your main Rails database
+(see the table structure above).
+User has many external databases.
+Every external database has several tables - `owners` and `attachments`.
 
-* You can add and remove `Container` entries and the backend will crete/delete the database
-of the `Container`.
+Let's say we have a `User(name: 'Bob')`, who has two external databases attached:
+`[ExternalDatabase(database: 'main'), ExternalDatabase(database: 'backup')]`.
 
-* There will be a `[main_db].containers` table that keeps track of all containers and their databases.
+To access attachments from the backup database, you can do the following:
 
-* Adding a `File` will create a record in the `[container].files` table.
+[source,ruby]
+----
+user = User.find_by(name: 'Bob')
+user.external_databases.where(database: 'backup').first.attachments
+  ExternalDatabase Load (0.7ms)  SELECT  "external_databases".* FROM "external_databases" WHERE "external_databases"."user_id" = $1 AND "external_databases"."database" = $2 ORDER BY "external_databases"."id" ASC LIMIT $3  [["user_id", 1], ["database", "backup"], ["LIMIT", 1]]
+  Attachment::ExternalDatabase2 Load (0.4ms)  SELECT  "attachments".* FROM "attachments" LIMIT $1  [["LIMIT", 11]]
+ => #<ActiveRecord::Relation [#<Attachment::ExternalDatabase2 id: 1, name: "daily_report.xls", url: "s3.amazonaws.com/mybucket/fg13a9ccd28af", owner_id: 2>, #<Attachment::ExternalDatabase2 id: 2, name: "huge_report.doc", url: "s3.amazonaws.com/mybucket/49ab4001fee9e9eed", owner_id: 1>]>
+----
 
-* Adding a `User` will create a record in the `[main_db].users` table.
+You can also do joins within the same database, just like you would do it on the main database:
 
-* The naming of `[container]` can depend on the setting, such as `[main-db]-[container-name]-[container-id]` (suppose `container-id` is a UUID).
-
-Benefits:
-
-* Each `Container` can be completely segregated from each other (esp. backup, restore)
-* Each `Container` is self sustained
-
-Drawbacks:
-
-* Unable to perform cross-`Container` joins
+[source,ruby]
+----
+ExternalDatabase.find(1).owners.eager_load(:attachments)
+  ExternalDatabase Load (0.4ms)  SELECT  "external_databases".* FROM "external_databases" WHERE "external_databases"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+  SQL (6.5ms)  SELECT  DISTINCT "owners"."id" FROM "owners" LEFT OUTER JOIN "attachments" ON "attachments"."owner_id" = "owners"."id" LIMIT $1  [["LIMIT", 11]]
+  SQL (0.8ms)  SELECT "owners"."id" AS t0_r0, "owners"."name" AS t0_r1, "owners"."city" AS t0_r2, "attachments"."id" AS t1_r0, "attachments"."name" AS t1_r1, "attachments"."url" AS t1_r2, "attachments"."owner_id" AS t1_r3 FROM "owners" LEFT OUTER JOIN "attachments" ON "attachments"."owner_id" = "owners"."id" WHERE "owners"."id" IN (1, 2)
+ => #<ActiveRecord::Relation [#<Owner::ExternalDatabase1 id: 1, name: "Misha", city: "Kharkiv">, #<Owner::ExternalDatabase1 id: 2, name: "Aleksey", city: "Kharkiv">]>
+----
