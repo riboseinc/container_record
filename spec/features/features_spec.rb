@@ -8,10 +8,8 @@ RSpec.describe 'Container Record' do
     Array.new(amount).map do
       company.create_external_record(
         Employee,
-        {
-          first_name: FFaker::Name.first_name,
-          last_name: FFaker::Name.last_name
-        }
+        first_name: FFaker::Name.first_name,
+        last_name: FFaker::Name.last_name
       )
     end
   end
@@ -20,11 +18,9 @@ RSpec.describe 'Container Record' do
     Array.new(amount).map do
       company.create_external_record(
         Attachment,
-        {
-          employee: employee,
-          filename: FFaker::Internet.domain_name,
-          s3_url:   FFaker::Internet.uri('https')
-        }
+        employee: employee,
+        filename: FFaker::Internet.domain_name,
+        s3_url:   FFaker::Internet.uri('https')
       )
     end
   end

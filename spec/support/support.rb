@@ -3,7 +3,7 @@
 DB_CONFIGURATION = {
   adapter: 'sqlite3',
   database: 'spec/db/main.db'
-}
+}.freeze
 
 ActiveRecord::Base.establish_connection(DB_CONFIGURATION)
 
