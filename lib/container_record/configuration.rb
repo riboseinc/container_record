@@ -4,6 +4,7 @@ module ContainerRecord
   module Configuration
     def configure
       yield config
+      setup_classes!
     end
 
     private
@@ -14,6 +15,10 @@ module ContainerRecord
 
     def defaults
       { external_database_classes: [] }
+    end
+
+    def setup_classes!
+      config.external_database_classes.each(&:define_external_relations!)
     end
   end
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Company < ContainerRecord::ExternalDatabase
-  extend Stubs
+  extend Mocks
 
   has_external :employees
   has_external :attachments

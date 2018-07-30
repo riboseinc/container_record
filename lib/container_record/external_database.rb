@@ -6,7 +6,6 @@ module ContainerRecord
 
     self.abstract_class = true
 
-    # TODO: Fix the case when database_name is called after has_external
     def database_name
       database_name_proc = self.class.options[:database_name]
       return database_name_proc.call(self) if database_name_proc

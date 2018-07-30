@@ -7,20 +7,31 @@ module ContainerRecord
 
       RAILS_ASSOCIATION_PARAMS = %i[foreign_key].freeze
 
+      def external_relations
+        @external_relations ||= {}
+      end
+
       # rubocop:disable Naming/PredicateName
       def has_external(relation_name)
-        external_model_class = class_by_relation_name(relation_name)
-
-        # Here we dynamically define classes for every container in the System
-        # So every class has its own connection and is able to use ActiveRecord
-        # syntax for querying
-        define_dynamic_classes!(external_model_class)
-
-        define_method(relation_name) do
-          self.class.containered_class_for(external_model_class, self).where({})
-        end
+        klass = class_by_relation_name(relation_name)
+        external_relations[relation_name] = klass
       end
       # rubocop:enable Naming/PredicateName
+
+      def define_external_relations!
+        external_relations.each do |relation_name, external_model_class|
+          # Here we dynamically define classes for every container in the System
+          # So every class has its own connection
+          # and is able to use ActiveRecord syntax for querying
+          define_dynamic_classes!(external_model_class)
+
+          define_method(relation_name) do
+            self.class
+                .containered_class_for(external_model_class, self)
+                .where({})
+          end
+        end
+      end
 
       def containered_class_for(external_model_class, container)
         @containered_classes ||= {}

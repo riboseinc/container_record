@@ -8,4 +8,10 @@ module ContainerRecord
       'Expected argument of Proc type'
     end
   end
+
+  class ExternalDatabaseExists < Error
+    def message
+      'External database model with such name already exists.'
+    end
+  end
 end
