@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-class Company < ContainerRecord::ExternalDatabase
+class Company < ActiveRecord::Base
+  include ContainerRecord::ExternalDatabase
   extend Mocks
 
   has_external :employees

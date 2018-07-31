@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
-class Attachment < ContainerRecord::DynamicDatabase
+class Attachment < ActiveRecord::Base
+  include ContainerRecord::DynamicDatabase
+
   belongs_to :employee
 end
