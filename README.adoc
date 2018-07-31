@@ -6,46 +6,74 @@ each AR model corresponds to a table.
 ContainerRecord ("CR") however implements an additional tier on top of AR,
 that implements AR-styled functionality on the database level.
 
+= Usage
+
+To start using `ContainerRecord` you need to create an `external_databases`
+table in your main database.
+The name is fully optional, as well as the structure.
+
+The idea is that you store a database connection settings there,
+like if you would store them in your standard Rails `config/database.yml`.
+
+Column names should match the keys available in `config/database.yml`.
+
+=== Example
+
+Assuming you have a `Company` model in your Rails application. It is just a regular model, which has its own table, and so on:
+
 [source,ruby]
 ----
-class Container < ContainerRecord
-  belongs_to :user
-  has_many :files
-  database_name [ :main_db, :name, :id ]
+# app/models/company.rb
+class Company < ActiveRecord::Base
+  has_many :employees
 end
 
-class User < ActiveRecord
-  has_many :containers
-  has_many :files
-end
-
-class File < ActiveRecord
-  container_record Container
-  belongs_to :container
-  belongs_to :user
+# app/models/employee.rb
+class Employee < ActiveRecord::Base
+  belongs_to :company
 end
 ----
 
-What this means:
+Let's say you have 5 companies, and now you want to store their employees each in its own database. Easy - with `ContainerRecord`!
 
-* Each `Container` is to have its own Database, with a table called `[container].files`.
+Just add `gem 'container_record', '~> 1.0'` to your `Gemfile`, and change your `Company` model the following way:
 
-* You can add and remove `Container` entries and the backend will crete/delete the database
-of the `Container`.
+[source,ruby]
+----
+# app/models/company.rb
+class Company < ActiveRecord::Base
+  include ContainerRecord::ExternalDatabase
 
-* There will be a `[main_db].containers` table that keeps track of all containers and their databases.
+  has_external :employees
 
-* Adding a `File` will create a record in the `[container].files` table.
+  database_name ->(company) { "#{company.name}_#{company.id}_database" }
+end
 
-* Adding a `User` will create a record in the `[main_db].users` table.
+# app/models/employee.rb
+class Employee < ActiveRecord::Base
+  # Note, we disabled belongs_to relation, as companies now live in a different database
+  # belongs_to :company
+end
 
-* The naming of `[container]` can depend on the setting, such as `[main-db]-[container-name]-[container-id]` (suppose `container-id` is a UUID).
+# config/initializers/container_record.rb
+ContainerRecord.configure do |config|
+  config.external_database_classes = [Company]
+end
+----
 
-Benefits:
+That's pretty much it!
 
-* Each `Container` can be completely segregated from each other (esp. backup, restore)
-* Each `Container` is self sustained
+Don't forget to create a new database for every company (i.e. `twitter_1_database`, `jacksonandsons_2_database` etc), and migrate there your smaller "employees" table.
 
-Drawbacks:
+Now you're able to access them just like that:
 
-* Unable to perform cross-`Container` joins
+[source,ruby]
+----
+company = Company.find(1)
+company.employees.where(salary: 75_000)
+company.create_external_record(Employee, first_name: 'Robert', salary: 80_000)
+----
+
+= Plans & TODOs
+
+- [ ] To add simple migrations for external databases (aka maintain actual DB version)

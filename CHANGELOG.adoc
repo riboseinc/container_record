@@ -1,5 +1,5 @@
 = CHANGELOG
 
-==== 0.1.0 (TODO: Date)
+==== 1.0.0 (2018-08-01)
 
-* TODO
+* Basic version that works.
