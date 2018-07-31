@@ -6,7 +6,7 @@ each AR model corresponds to a table.
 ContainerRecord ("CR") however implements an additional tier on top of AR,
 that implements AR-styled functionality on the database level.
 
-= Usage example
+= Usage
 
 To start using `ContainerRecord` you need to create an `external_databases`
 table in your main database.
@@ -17,88 +17,63 @@ like if you would store them in your standard Rails `config/database.yml`.
 
 Column names should match the keys available in `config/database.yml`.
 
-For example:
+=== Example
 
-.external_databases
-|===
-|id |database |host
-
-|1
-|database_for_john_the_client
-|8.8.8.8
-
-|2
-|database_for_mary_the_client
-|1.1.1.1
-|===
-
-You can omit settings you don't use (for example - `adapter` or `port`),
-or leave some columns nil. In that case missing settings
-will be taken from `config/database.yml` aka
-from the main ActiveRecord::Base connection configuration.
+Assuming you have a `Company` model in your Rails application. It is just a regular model, which has its own table, and so on:
 
 [source,ruby]
 ----
-
-class User < ApplicationRecord
-  has_many :external_databases
+# app/models/company.rb
+class Company < ActiveRecord::Base
+  has_many :employees
 end
 
-class ExternalDatabase < ContainerRecord::ExternalDatabase
-  belongs_to :user
+# app/models/employee.rb
+class Employee < ActiveRecord::Base
+  belongs_to :company
+end
+----
 
-  has_external :attachments
-  has_external :owners
+Let's say you have 5 companies, and now you want to store their employees each in its own database. Easy - with `ContainerRecord`!
 
-  # By default database_name equals `database` field
-  database_name ->(db) { "database_for_user_#{db.user.id}" }
+Just add `gem 'container_record', '~> 1.0'` to your `Gemfile`, and change your `Company` model the following way:
+
+[source,ruby]
+----
+# app/models/company.rb
+class Company < ActiveRecord::Base
+  include ContainerRecord::ExternalDatabase
+
+  has_external :employees
+
+  database_name ->(company) { "#{company.name}_#{company.id}_database" }
 end
 
-class Owner < ContainerRecord::DynamicDatabase
-  has_many :attachments
-end
-
-class Attachment < ContainerRecord::DynamicDatabase
-  belongs_to :owner
+# app/models/employee.rb
+class Employee < ActiveRecord::Base
+  # Note, we disabled belongs_to relation, as companies now live in a different database
+  # belongs_to :company
 end
 
 # config/initializers/container_record.rb
-
 ContainerRecord.configure do |config|
-  config.external_database_classes = [ExternalDatabase]
+  config.external_database_classes = [Company]
 end
-
 ----
 
-The example above implements the following structure:
+That's pretty much it!
 
-You have `User` in you main Rails database.
-You also have `ExternalDatabase` in your main Rails database
-(see the table structure above).
-User has many external databases.
-Every external database has several tables - `owners` and `attachments`.
+Don't forget to create a new database for every company (i.e. `twitter_1_database`, `jacksonandsons_2_database` etc), and migrate there your smaller "employees" table.
 
-Let's say we have a `User(name: 'Bob')`, who has two external databases attached:
-`[ExternalDatabase(database: 'main'), ExternalDatabase(database: 'backup')]`.
-
-To access attachments from the backup database, you can do the following:
+Now you're able to access them just like that:
 
 [source,ruby]
 ----
-user = User.find_by(name: 'Bob')
-user.external_databases.where(database: 'backup').first.attachments
-  ExternalDatabase Load (0.7ms)  SELECT  "external_databases".* FROM "external_databases" WHERE "external_databases"."user_id" = $1 AND "external_databases"."database" = $2 ORDER BY "external_databases"."id" ASC LIMIT $3  [["user_id", 1], ["database", "backup"], ["LIMIT", 1]]
-  Attachment::ExternalDatabase2 Load (0.4ms)  SELECT  "attachments".* FROM "attachments" LIMIT $1  [["LIMIT", 11]]
- => #<ActiveRecord::Relation [#<Attachment::ExternalDatabase2 id: 1, name: "daily_report.xls", url: "s3.amazonaws.com/mybucket/fg13a9ccd28af", owner_id: 2>, #<Attachment::ExternalDatabase2 id: 2, name: "huge_report.doc", url: "s3.amazonaws.com/mybucket/49ab4001fee9e9eed", owner_id: 1>]>
+company = Company.find(1)
+company.employees.where(salary: 75_000)
+company.create_external_record(Employee, first_name: 'Robert', salary: 80_000)
 ----
 
-You can also do joins within the same database, just like you would do it on the main database:
+= Plans & TODOs
 
-[source,ruby]
-----
-ExternalDatabase.find(1).owners.eager_load(:attachments)
-  ExternalDatabase Load (0.4ms)  SELECT  "external_databases".* FROM "external_databases" WHERE "external_databases"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
-  SQL (6.5ms)  SELECT  DISTINCT "owners"."id" FROM "owners" LEFT OUTER JOIN "attachments" ON "attachments"."owner_id" = "owners"."id" LIMIT $1  [["LIMIT", 11]]
-  SQL (0.8ms)  SELECT "owners"."id" AS t0_r0, "owners"."name" AS t0_r1, "owners"."city" AS t0_r2, "attachments"."id" AS t1_r0, "attachments"."name" AS t1_r1, "attachments"."url" AS t1_r2, "attachments"."owner_id" AS t1_r3 FROM "owners" LEFT OUTER JOIN "attachments" ON "attachments"."owner_id" = "owners"."id" WHERE "owners"."id" IN (1, 2)
- => #<ActiveRecord::Relation [#<Owner::ExternalDatabase1 id: 1, name: "Misha", city: "Kharkiv">, #<Owner::ExternalDatabase1 id: 2, name: "Aleksey", city: "Kharkiv">]>
-----
+- [ ] To add simple migrations for external databases (aka maintain actual DB version)
